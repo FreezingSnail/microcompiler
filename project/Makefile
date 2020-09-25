@@ -1,5 +1,5 @@
 all: first
 first: main.c 
-	gcc vm.c main.c scanner.c compiler.c chunk.c debug.c memory.c value.c -o main &&./main
+	gcc -std=c99 vm.c main.c scanner.c compiler.c chunk.c   value.c -o main
 clean:
 	rm -rf first

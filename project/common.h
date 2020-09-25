@@ -5,4 +5,7 @@
 #include <stddef.h>  
 #include <stdint.h>  
 
+
+//#define DEBUGER
+
 #endif    

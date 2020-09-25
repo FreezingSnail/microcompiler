@@ -2,20 +2,29 @@
 
 #include "vm.h"
 #include "common.h"
-#include "debug.h"
+
 #include "compiler.h"
+
+
 
 VM vm; 
 
-static int getVar(char c){
+static void runtimeErrorCall(){
+    printf("exception\n");
+    vm.runtimeError = true;
+}
 
-    printf("getvar: %c,  %d \n", c, c);
+static int getVar(char c){
+    #ifdef DEBUGGER
+        printf("getvar: %c,  %d \n", c, c);
+    #endif
     switch(c){
         case 'a': return 0;
         case 'b': return 1;
         case 'c': return 2;
         default:
-            printf("bad var access\n");
+           // printf("bad var access\n");
+           runtimeErrorCall();
             return -1;
     }
 }
@@ -29,7 +38,10 @@ static void setVar(int index, int num){
     vm.variableList.defined[index] = true;
 }
 static int getvarValue(int index){
-    return vm.variableList.vars[index];
+    if(defineCheck(index))
+        return vm.variableList.vars[index];
+    else
+        runtimeErrorCall();
 }
 
 static void define(int index){
@@ -50,12 +62,26 @@ int pop() {
   return *vm.stackTop;
 }  
 
+static void resetVars(){
+    for(int i=0;i<3;i++){
+    vm.variableList.vars[i] = 0;
+    vm.variableList.defined[i] = false;
+    }
+}
 
-void initVM() {    
+
+void initVM() {  
+    vm.runtimeError = 0;  
     resetStack();
-}                  
+    resetVars();
+}     
+
+void reset(){
+    initVM();
+}
 
 void freeVM() {    
+    //freeChunk(vm.chunk);
 }   
 
 static void printStack(){
@@ -82,24 +108,21 @@ static InterpretResult run() {
 
   for (;;) {      
 
-     printf("          ");                                           
-    for (int* slot = vm.stack; slot < vm.stackTop; slot++) {      
-      printf("[ ");                                                 
-      printValue(*slot);                                            
-      printf(" ]");                                                 
-    }                                                               
-    printf("\n");    
-    disassembleInstruction(vm.chunk, (int)(vm.ip - vm.chunk->code));
-    printf("test\n");              
-    uint8_t instruction;                
+    uint8_t instruction;  
+    if(vm.runtimeError){
+        vm.runtimeError = false;
+        return INTERPRET_RUNTIME_ERROR;   
+
+    }           
     switch (instruction = READ_BYTE()) {
         case OP_VAR:
         case OP_CONSTANT: {                
             int constant = READ_CONSTANT();
-            printValue(constant); 
-            
-            push(constant);           
-            printf("\n");                    
+            #ifdef DEBUGGER
+                printValue(constant);
+                printf("\n");
+            #endif     
+            push(constant);                              
             break;                           
       }    
       case OP_DOT: {                 
@@ -111,25 +134,13 @@ static InterpretResult run() {
       case OP_DIVIDE:   BINARY_OP(/); break;  
 
       case OP_PRINT: {
-            printf("Printing: %d",pop());
-            printf("\n");
+            printf("%d\n",pop());
         break;
-      }/*
-      case OP_DEFINE: {
-                ObjString* name = READ_STRING();
-                tableSet(&vm.globals, name, peek(0));
-                pop();
-                break;
-            }
-*/
+      }
             case OP_SET: {
                 int num = pop();
                 int varIndex = getVar((char)pop());
-                //if(defineCheck(varIndex))
                 setVar(varIndex, num);
-
-                
-                
                 break;
             } 
             
@@ -138,9 +149,16 @@ static InterpretResult run() {
                 if(defineCheck(varIndex))
                     push(getvarValue(varIndex));
                 else{
-                    printf("var not initialized\n");
+                    runtimeErrorCall();
                 }
-            }              
+                break;
+            }  
+
+            default:
+            #ifdef DEBUGER
+                printf("totally toast %d", instruction);  
+            #endif   
+            break;       
     }                                   
   }                                     
 
@@ -154,16 +172,20 @@ InterpretResult interpret(const char* source) {
   initChunk(&chunk);
 
   if (!compile(source, &chunk)) {              
-    freeChunk(&chunk);                         
+    freeChunk(&chunk); 
+    printf("syntax error\n");                        
     return INTERPRET_COMPILE_ERROR;            
   }                                            
 
   vm.chunk = &chunk;                           
   vm.ip = vm.chunk->code;  
-
+    #ifdef DEBUGER
     printf("running\n");
-  InterpretResult result = run();              
+    #endif
+    InterpretResult result = run();   
+    #ifdef DEBUGER           
     printf("done\n");
+    #endif
   //freeChunk(&chunk);                           
   return result;                              
 }  

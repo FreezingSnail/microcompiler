@@ -16,6 +16,7 @@ typedef struct {
   int stack[256];
   int* stackTop;  
 
+    bool runtimeError;
     vars variableList;
   
 } VM; 
@@ -23,7 +24,8 @@ typedef struct {
 
 
 void initVM();    
-void freeVM();  
+void freeVM(); 
+void reset(); 
 
 typedef enum {
     INTERPRET_OK,

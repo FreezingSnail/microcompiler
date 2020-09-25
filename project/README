@@ -1,0 +1,8 @@
+
+compiler.c contains the recursive descent parser
+
+please compile with:
+    $make
+
+and run with 
+    $./main /path/to/test/files

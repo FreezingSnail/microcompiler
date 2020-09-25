@@ -6,8 +6,7 @@
 #include "scanner.h"
 #include "compiler.h"
 #include "common.h"                     
-#include "chunk.h" 
-#include "debug.h"
+
 
 static void repl(){
 	char line[1024];
@@ -20,9 +19,12 @@ static void repl(){
 		}
 
 		if(line[0] == ':' && line[1] == 'q')
-			exit(0);
-			
-        interpret(line); 
+			break;
+
+        else if(line[0] == ':' && line[1] == 'r')
+			reset();
+		else	
+            interpret(line); 
 	}
 }
 
@@ -56,11 +58,7 @@ static char * readFile(const char * path){
 static void runFile(const char* path){
 
 	char * source = readFile(path);
-	//InterpretResult result = interpret(source);
-	//free(source);
-
-	//if(result == INTERPRET_COMPILE_ERROR) exit(65);
-	//if(result == INTERPRET_RUNTIME_ERROR) exit(70);
+	interpret(source);
 }
 
 int main(int argc, char ** argv){
@@ -72,7 +70,7 @@ int main(int argc, char ** argv){
 	} else if (argc == 2){
 		runFile(argv[1]);
 	} else {
-		fprintf(stderr, "Usage: clox [path]\n");
+		fprintf(stderr, "failure\n");
 		exit(64);
 	}
     

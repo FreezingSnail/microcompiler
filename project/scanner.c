@@ -3,6 +3,7 @@
 #include <stdbool.h>  
   
 #include "scanner.h"
+#include "common.h"
 
 
 typedef struct{
@@ -37,34 +38,6 @@ static char advance(){
 
 
 
- char peek(){
-    // printf("%c \n", *scanner.current);
-    return *scanner.current;
-}
-
- char peekNext(){
-    if(isAtEnd()) return '\0';
-   // printf("N: %c \n", scanner.current[1]);
-    return scanner.current[1];
-}
-
- bool match(char expected){
-    if(isAtEnd()) return false;
-    printf("current: %c\n", *scanner.current);
-    if(*scanner.current != expected) return false;
-
-    scanner.current++;
-    return true;
-}
-bool matchNext(char expected){
-    if(peekNext() == '\0') return false;
-    if(peekNext() != expected) return false;
-
-    //scanner.current++;
-    return true;
-}
-
-
 void next(){
     if(!isAtEnd()){
     advance();
@@ -92,10 +65,16 @@ Token scanToken() {
     if(isAtEnd()) return makeToken(TOKEN_EOF);
 
     char c = advance();
-    printf("scanning Token: %c \n",c);
-    if(isAlpha(c)) {printf("alphatoken #%d\n", TOKEN_CHAR); return makeToken(TOKEN_CHAR);}
-    if(isDigit(c)) return makeToken(TOKEN_DIGIT);
+    #ifdef DEBUGGER
+        printf("scanning Token: %c \n",c);
+        printf("scanning Token: %d \n",c);
+    #endif
     
+    
+
+    if(isAlpha(c)) return makeToken(TOKEN_CHAR);
+    if(isDigit(c)) return makeToken(TOKEN_DIGIT);
+
     switch (c) {                                    
 
         case ';': return makeToken(TOKEN_SEMICOLON);        
@@ -108,11 +87,12 @@ Token scanToken() {
         case '!':                                                        
             return makeToken( TOKEN_BANG);  
         case '=': 
-             return makeToken( TOKEN_EQUAL);                                                       
+             return makeToken( TOKEN_EQUAL); 
+        case '\0': 
+        case 10:
+            return makeToken(TOKEN_EOF);                                                
    
   }   
-
-  printf("scanning is fucked\n");
-
+   
     return errorToken("Unexpected character.");
 }

@@ -3,21 +3,13 @@
 
 #include "scanner.h"
 #include "compiler.h"
-#include "debug.h"
+
 
 
 
 /*
-    TODO:
-    error handling
-
-
-
-
-
-
-
-
+    Connor Franc
+    This file contains the recursive descent parser
 
 
 */
@@ -38,41 +30,6 @@ hConsti ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
 */
 
-/*
-Input: 
-   string ω 
-   parsing table M for grammar G
-
-Output:
-   If ω is in L(G) then left-most derivation of ω,
-   error otherwise.
-
-Initial State : $S on stack (with S being start symbol)
-   ω$ in the input buffer
-
-SET ip to point the first symbol of ω$.
-
-repeat
-   let X be the top stack symbol and a the symbol pointed by ip.
-
-   if X∈ Vt or $
-      if X = a
-         POP X and advance ip.
-      else
-         error()
-      endif
-      
-   else	// X is non-terminal 
-      if M[X,a] = X → Y1, Y2,... Yk    
-         POP X
-         PUSH Yk, Yk-1,... Y1 // Y1 on top 
-         Output the production X → Y1, Y2,... Yk 
-      else
-         error()
-      endif
-   endif
-until X = $	// empty stack
-*/
 
 typedef struct {       
   Token current;       
@@ -82,37 +39,26 @@ typedef struct {
 Parser parser; 
 
 Chunk* compilingChunk;
-
-static Chunk* currentChunk() {                          
-  return compilingChunk;                                
-}  
-
-int vara = 0;
-int varb = 0;
-int varc = 0;
-
+bool COMPILE_OK;
+  
 char stack[256];
 char * stackpointer = stack;
 int stackSize = 0;
 
 static void StmtList();
+static void Prog();
 
-static void advance() {             
-    printf("advancine\n");
-  
-
-  parser.previous = parser.current;
-
-  //for (;;) {                                      
-    parser.current = scanToken();                 
-    //if (parser.current.type != TOKEN_ERROR) //break;
-    //printf("id p %c\n",*parser.previous.start);
-    //printf("id c %c\n",*parser.current.start);
-    //printf("id p %d\n",parser.previous);
-   // printf("id c %d\n",parser.current);
-    //errorAtCurrent(parser.current.start);         
-  //}                                               
+static void advance() {   
+    #ifdef DEBUGER          
+        printf("advancine\n");
+    #endif
+    parser.previous = parser.current;                                   
+    parser.current = scanToken();                                                              
 }  
+
+static Chunk* currentChunk() {                          
+  return compilingChunk;                                
+}
 
 static void emitByte(uint8_t byte) {                     
   writeChunk(currentChunk(), byte);
@@ -138,32 +84,30 @@ static uint8_t makeConstant(int value) {
 }   
 
 static void endCompiler() {
-  emitDot();        
-  disassembleChunk(currentChunk(), "code");    
+    emitDot();      
+    #ifdef DEBUGER  
+        disassembleChunk(currentChunk(), "code");  
+    #endif
 }                          
 
 
-static void consume(TokenType type, const char* message) {
-  if (parser.current.type == type) {                      
-    advance();                                            
-    return;                                               
-  }
-
-  //errorAtCurrent(message);                                
-}   
-
 
 bool compile(const char* source, Chunk* chunk){
-  initScanner(source);    
+    initScanner(source);  
+    COMPILE_OK = true;  
 
-  compilingChunk = chunk;          
-    printf("first advance\n");
-  advance();                                      
-  Prog();                                   
-  consume(TOKEN_EOF, "Expect end of expression."); 
-  printf("done compiling\n");
-  endCompiler();
-  return true;
+    compilingChunk = chunk; 
+    #ifdef DEBUGER         
+        printf("first advance\n");
+    #endif
+    advance();                                      
+    Prog();                                   
+
+    #ifdef DEBUGER
+        printf("done compiling\n");
+    #endif
+    endCompiler();
+    return COMPILE_OK;
 
 }  
 
@@ -185,69 +129,71 @@ static void resetStack(){
     stackSize = 0;
 }
 
-
-static void resolve(){
-    if(isAlpha(stack[0])){
-    char c = stack[0];
-    switch(c){
-        case 'a': printf("%i\n",vara); break;
-            case 'b': printf("%i\n",varb); break;
-            case 'c': printf("%i\n",varc); break;
-    }
-    }
-}
-
 static void error(char T){
-    printf("error %c \n", T);
+    COMPILE_OK = false;
+    #ifdef DEBUGER
+        printf("error %c \n", T);
+    #endif
 }
 
 static void emitConstant(int value) {       
   emitBytes(OP_CONSTANT, makeConstant(value));
 }   
 
+
+
+
+//rdp
+
 static void Const(){
-     printf("enter cosnt\n");
-    printf("cost %d\n",*parser.current.start);
+    #ifdef DEBUGER
+        printf("enter cosnt\n");
+        printf("cost %d\n",*parser.current.start);
+    #endif
     int value = (int) *parser.previous.start - '0';
     emitConstant(value);
     
 }
 
 static void Id(){
-     printf("enter id\n");
-     printf("id p %c\n",*parser.previous.start);
-    //printf("id c %c\n",*parser.current.start);
-     emitBytes(OP_VAR, makeConstant(*parser.previous.start));
+    #ifdef DEBUGER
+        printf("enter id\n");
+        printf("id p %c\n",*parser.previous.start);
+    #endif
+    emitBytes(OP_VAR, makeConstant(*parser.previous.start));
 }
 
 static void Expr(){
-    printf("enter expr\n");
+    #ifdef DEBUGER
+        printf("enter expr\n");
+    #endif
     advance();
     TokenType operatorType = parser.previous.type;
-
-    printf("exprprev: %d\n",  operatorType);
+    #ifdef DEBUGER
+        printf("exprprev: %d\n",  operatorType);
+    #endif
     if(operatorType == TOKEN_CHAR){
-        //advance();
         Id();
         emitByte(OP_GET);
     }
     else if( operatorType == TOKEN_DIGIT)
         Const();
     else if(operatorType == TOKEN_ERROR){
-                printf("ded\n");
+        error('e');
         return;
     }
     else {
         if(operatorType == TOKEN_EOF){
-        printf("ded\n");
-        return;
+            return;
         }
-        printf("expressioning;\n");
-        //advance();
-        printf("expr1\n");
+        #ifdef DEBUGER
+            printf("expressioning;\n");
+            printf("expr1\n");
+        #endif
         Expr();
-        //advance();
-        printf("expr2\n");
+        #ifdef DEBUGER
+            printf("expr2\n");
+        #endif
         Expr();
         
         switch(operatorType){
@@ -262,123 +208,123 @@ static void Expr(){
         }
         
     }
-
-    printf("exit expr\n");
+    #ifdef DEBUGER
+        printf("exit expr\n");
+    #endif
 }
 
 static void print(){
-
-   /* printf("print ");
-    char c = peekNext();
-    if(isAlpha(c)){
-        switch(c){
-            case 'a': printf("%i\n",vara); break;
-            case 'b': printf("%i\n",varb); break;
-            case 'c': printf("%i\n",varc); break;
-        }
+    if(parser.current.type != TOKEN_CHAR){
+        error('p');
     }
-    else if(isDigit(c))
-        printf("%c",c);
-    //print("Print: %c\n", peek());
-    //next();
-    */
-    
+
     advance();
     Id();
     emitByte(OP_GET);
     emitByte(OP_PRINT);
-    printf("exiting print\n");
+    #ifdef DEBUGER
+        printf("exiting print\n");
+    #endif
 }
 
-static void Assign(){  // god only knows
-        printf("assinging\n");
+static void Assign(){  
+        #ifdef DEBUGER
+            printf("assinging\n");
+        #endif
         Id();
         advance();
         Expr();
-        printf("pushing opset\n");
+        #ifdef DEBUGER
+            printf("pushing opset\n");
+        #endif
         emitByte(OP_SET);
-        /*
-        if(peek() == '='){
-            push('=');
-            next();
-            Expr();
-        }
-        else
-            error('T');
-            */
+        #ifdef DEBUGER
             printf("exiting assign\n");
+        #endif
 } 
 
 static void Stmt(){
     TokenType operatorType = parser.previous.type;
-    printf("stmt: %d\n",operatorType);
+    #ifdef DEBUGER
+        printf("stmt: %d\n",operatorType);
+    #endif
 
-   if(operatorType == TOKEN_BANG){
-
-    printf("matched !\n");
-    //advance();
+    if(operatorType == TOKEN_BANG){
+        #ifdef DEBUGER
+            printf("matched !\n");
+        #endif
     print();
    } else if(parser.current.type == TOKEN_EQUAL){
+       if(operatorType != TOKEN_CHAR)
+            error('s');
+
         Assign();
-       // advance();
    }
     else {
-        printf("%d\n", parser.previous.type);
-        error('S');
-        print("5s\n", peek());
-        //exit(70);
+            #ifdef DEBUGER
+                printf("%d\n", parser.previous.type);
+            #endif
+            error('S');
     }
-    printf("exited Stmt\n");
+    #ifdef DEBUGER
+        printf("exited Stmt\n");
+    #endif
 }
 
 static void nextStmt(){
      if(parser.current.type == TOKEN_SEMICOLON){ 
-         advance();
-         if(parser.current.type == TOKEN_DOT){ //done
-        }
-        else{
-            
-        StmtList();
-        }//done
-        }
+         #ifdef DEBUGER
+            printf("semicollen nxtstmt\n");
+        #endif
+            advance();
+            if(parser.current.type == TOKEN_DOT){ 
+                #ifdef DEBUGER
+                printf("done\n");//done
+                #endif
+            }   
+            else{
+                StmtList();
+            }
+    }
+    else if(parser.current.type == TOKEN_DOT){
+        #ifdef DEBUGER
+            printf("checking past end of file\n");//done
+            printf("token: %d\n",parser.current.type);
+        #endif
+
+        advance();
+
+        if(parser.current.type != TOKEN_EOF)
+            error('.');
+    }
 }
 
 static void StmtList(){
-
-    printf("enteringstmtlist\n");
-    advance();
-    Stmt();
-    nextStmt();
-    if(parser.current.type == TOKEN_DOT){ //done
-    advance();
-    if(parser.current.type != TOKEN_EOF){
-        error('f');
-        }
-    }
-        
-    //emitByte(TOKEN_SEMICOLON);
-    //advance();
-    
-        
-
-    
-        
-   /* resolve();
-    if(peek() == ';')
-        if(peekNext() != '.'){
-
-            StmtList();
-        }
-    //else
-       // error('L');*/
+    if(parser.current.type != TOKEN_DOT){
+        #ifdef DEBUGER
+            printf("enteringstmtlist\n");
+        #endif
+        advance();
+        Stmt();
+        #ifdef DEBUGER
+            printf("entering nextstmtlist\n");
+        #endif
+        nextStmt();
+    } 
+     
 }
 
 
-
- void Prog(){
-     //if(peek() != '.')
+ static void Prog(){
     StmtList();
-    
-    
 
+     if(parser.current.type == TOKEN_DOT){ //done
+        advance();
+        if(parser.current.type != TOKEN_EOF){
+            #ifdef DEBUGER
+            printf("not eof\n");
+            #endif
+            error('f');
+        }
+     }
 }
